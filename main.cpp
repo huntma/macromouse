@@ -19,19 +19,19 @@ volatile unsigned long pulsesRight = 0;
 volatile unsigned long pulsesLeft = 0;
 int errorPulse = 1;
 double Kp = 0.0001;   // arbitrary values
-double Kd = 1000;
+double Kd = 200;
 double Ki = 0.5;
-double speedChange = 0;
+double speedChange = 0;     //holds P,I,D fn return values
 int integral = 0;
-double maxCorrect = 0.1;
-double maxSpeed = 0.15;
-double speedR = 0.1;
+double maxCorrect = 0.1;    //limits correction values
+double maxSpeed = 0.15;     //limits motor speed
+double minSpeed = 0.05;     //need this?
+double speedR = 0.1;        //for setting motor speed; accumulates
 double speedL = 0.1;
-int cnt=0;
+int cnt=0;                  //for D
+int prevError = 0;  //for D
 
-int prevError = 0;  // error in SPEED
-
-Serial pc(PA_2, PA_3);
+Serial pc(PA_2, PA_3);  //set serial
 
 void incrementRight(){  // increments right pulses
     pulsesRight++;
@@ -77,7 +77,6 @@ void turnL90() {     // turns 90 deg left
     return;
 }
 
-
 void forward(int cells) {   // moves forward num of cells
     int temp = pulsesRight;
     pulsesRight = 0;
@@ -92,7 +91,6 @@ void forward(int cells) {   // moves forward num of cells
     stop();
     return;
 }
-
 
 int speedLeft(double speed){    // writes the speed of left motor (checks if valid)
     if (speed < maxSpeed){
@@ -109,7 +107,6 @@ int speedRight(double speed){    // writes speed of right motor (checks if valid
     return 0;
 }
 
-
 void resetSpeed(double speed){    // resets forward speeds to input
     rightF.write(speed);
     rightR.write(0);
@@ -120,32 +117,28 @@ void resetSpeed(double speed){    // resets forward speeds to input
 
 double P_Controller(int error) // multiplies by Kp
 {
-    //added 11.3.16
     double correction = Kp * error;  // check if this is the right constant (1 pulse = 1 rotation of inner shaft, = ____ wheel rotations)
-        if (abs(correction) > maxCorrect) // more than max
+        if (abs(correction) > maxCorrect) // check with max
             correction = maxCorrect;
     return correction;
 }
 
-double D_Controller(int error)
+double D_Controller(int error) //calc D correction
 {
-    if(cnt==0) {
-        int dError = error - prevError;
-        double dt = timer.read_us();
+    if(cnt==0) {    //once per 10 cycles
+        int dError = error - prevError; //fairly small #
+        double dt = timer.read_us();    //for once/10 cycles, dt = ~20
         //pc.printf("time: %f\n", dt);
         timer.reset();
         prevError = error;
         double correction = Kd*dError/dt;
-        pc.printf("derror: %f\n", correction);
-        if (abs(correction) > maxCorrect) // more than max
-            correction = maxCorrect;
-        
+        pc.printf("derror: %f\n", correction);  //gives ~0.X
+        if (abs(correction) > maxCorrect) // check with max
+            correction = maxCorrect;     
         return correction;
     }
-    else {
-        cnt++;
-        cnt = cnt%10;
-    }
+    cnt++;
+    cnt = cnt%10;
     return 0;
 }
 
@@ -163,14 +156,16 @@ int main() {
         led1 = 1;
         errorPulse = pulsesRight - pulsesLeft; //if errorPulse negative: left is faster than right
 
-        //Hunt 11_3_16 PROPORTIONAL
-        speedChange = P_Controller(errorPulse);
-        speedR -= speedChange; //if speedChange neg (left is faster), right will speed up
+        //PROPORTIONAL
+        speedChange = P_Controller(errorPulse); //can be neg or pos
+        
+        //DERIVATIVE
+        //speedChange += D_Controller(errorPulse); //when P neg, D is pos; this line not tested
+      
+        speedR -= speedChange; //if speedChange neg (left is faster), speedR increases
         speedL += speedChange;
-        
-        //Hunt DERIVATIVE
-        
-         if (errorPulse == 0){
+
+         if (errorPulse == 0) { //if no error go normal speed
             speedR = 0.1;
             speedL = 0.1;
         }
@@ -178,11 +173,7 @@ int main() {
         speedLeft(speedL);
         speedRight(speedR);
         
-        // Derivative controller
-        speedChange = D_Controller(errorPulse);
-        
-        
-        // Integral controller
+        //INTEGRAL not done
         integral += errorPulse;
         integral /= 2;
         
@@ -201,8 +192,7 @@ int main() {
          pc.printf("%f\r\n", rightF.read());
          */
          //pc.printf("error: %d\n", errorPulse);
-         
-         
+       
         timer.stop();
     }
 }
