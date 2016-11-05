@@ -18,8 +18,8 @@ Timer timer;
 volatile unsigned long pulsesRight = 0;
 volatile unsigned long pulsesLeft = 0;
 int errorPulse = 1;
-double Kp = 0.0001;   // arbitrary values
-double Kd = 200;
+double Kp = 0.00015;   // arbitrary values
+double Kd = 0.02;
 double Ki = 0.5;
 double speedChange = 0;     //holds P,I,D fn return values
 int integral = 0;
@@ -31,7 +31,7 @@ double speedL = 0.1;
 int cnt=0;                  //for D
 int prevError = 0;  //for D
 
-Serial pc(PA_2, PA_3);  //set serial
+Serial pc(PA_9, PA_10); //set serial
 
 void incrementRight(){  // increments right pulses
     pulsesRight++;
@@ -129,10 +129,11 @@ double D_Controller(int error) //calc D correction
         int dError = error - prevError; //fairly small #
         double dt = timer.read_us();    //for once/10 cycles, dt = ~20
         //pc.printf("time: %f\n", dt);
+        double correction = Kd * dError;
         timer.reset();
         prevError = error;
-        double correction = Kd*dError/dt;
-        pc.printf("derror: %f\n", correction);  //gives ~0.X
+        //double correction = Kd*dError/dt;
+        //pc.printf("derror: %f\n", correction);  //gives ~0.X
         if (abs(correction) > maxCorrect) // check with max
             correction = maxCorrect;     
         return correction;
@@ -142,6 +143,14 @@ double D_Controller(int error) //calc D correction
     return 0;
 }
 
+double I_Controller(int error)
+{
+    integral += error;
+    double correction = Ki * integral;
+    integral /= 3; //decay factor is 2
+    return correction;
+}
+
 
 int main() {
     
@@ -149,7 +158,7 @@ int main() {
     encoderRightF.fall(&incrementRight);
     encoderLeftF.rise(&incrementLeft);
     encoderLeftF.fall(&incrementLeft);
-    pc.baud(115200);
+    pc.baud(9600);
     
     while(1) {
         timer.start();
@@ -160,7 +169,7 @@ int main() {
         speedChange = P_Controller(errorPulse); //can be neg or pos
         
         //DERIVATIVE
-        //speedChange += D_Controller(errorPulse); //when P neg, D is pos; this line not tested
+        speedChange += D_Controller(errorPulse); //when P neg, D is pos; this line not tested
       
         speedR -= speedChange; //if speedChange neg (left is faster), speedR increases
         speedL += speedChange;
@@ -181,7 +190,7 @@ int main() {
         //pc.printf(" ");
         //pc.printf("%f\r", speedChange);
         //pc.printf(" ");
-        //pc.printf("%d\r\n", errorPulse);
+        pc.printf("%d\r\n", errorPulse);
         /*pc.printf(" ");
          pc.printf("%d\r", pulsesRight);
          pc.printf(" ");
