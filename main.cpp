@@ -24,7 +24,7 @@ double Ki = 0.5;
 double speedChange = 0;     //holds P,I,D fn return values
 int integral = 0;
 double maxCorrect = 0.1;    //limits correction values
-double maxSpeed = 0.15;     //limits motor speed
+double maxSpeed = 0.5;     //limits motor speed
 double minSpeed = 0.05;     //need this?
 double speedR = 0.1;        //for setting motor speed; accumulates
 double speedL = 0.1;
@@ -147,7 +147,7 @@ double I_Controller(int error)
 {
     integral += error;
     double correction = Ki * integral;
-    integral /= 3; //decay factor is 2
+    integral /= 2; //decay factor is 2
     return correction;
 }
 
@@ -170,21 +170,20 @@ int main() {
         
         //DERIVATIVE
         speedChange += D_Controller(errorPulse); //when P neg, D is pos; this line not tested
+
+        //INTEGRAL
+        //speedChange += I_Controller(errorPulse);
       
         speedR -= speedChange; //if speedChange neg (left is faster), speedR increases
         speedL += speedChange;
 
          if (errorPulse == 0) { //if no error go normal speed
-            speedR = 0.1;
-            speedL = 0.1;
+            speedR = 0.2;
+            speedL = 0.2;
         }
                
         speedLeft(speedL);
         speedRight(speedR);
-        
-        //INTEGRAL not done
-        integral += errorPulse;
-        integral /= 2;
         
         //pc.printf("%d\r", integral);
         //pc.printf(" ");
