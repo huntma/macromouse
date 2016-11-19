@@ -163,15 +163,14 @@ double I_Controller(int error)
 }
 
 
-int main() {
-    
+void systick() // PID implementation
+{
     encoderRightF.rise(&incrementRight);
     encoderRightF.fall(&incrementRight);
     encoderLeftF.rise(&incrementLeft);
     encoderLeftF.fall(&incrementLeft);
     pc.baud(9600);
     
-    while(1) {
         timer.start();
         led1 = 1;
         errorPulse = pulsesRight - pulsesLeft; //if errorPulse negative: left is faster than right
@@ -196,22 +195,12 @@ int main() {
         speedLeft(speedL);
         speedRight(speedR);
         
-        //pc.printf("%d\r", integral);
-        //pc.printf(" ");
-        //pc.printf("%f\r", speedChange);
-        //pc.printf(" ");
-        pc.printf("%d\r\n", errorPulse);
-        /*pc.printf(" ");
-         pc.printf("%d\r", pulsesRight);
-         pc.printf(" ");
-         pc.printf("%d\r\n", pulsesLeft);
-         pc.printf(" ");
-         pc.printf("%f\r", leftF.read());
-         pc.printf(" ");
-         pc.printf("%f\r\n", rightF.read());
-         */
-         //pc.printf("error: %d\n", errorPulse);
-       
         timer.stop();
-    }
+    
+}
+
+int main() {
+    Systicker.attach_us(&systick, 1000); //this line implements PID
+   
+
 }
