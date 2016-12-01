@@ -2,27 +2,18 @@
 
 DigitalOut led1(LED1);
 
-PwmOut rightR(PB_6);
-//PwmOut rightF(PA_7);
-PwmOut rightF(PB_10);
-PwmOut leftF(PA_7);
-//PwmOut leftF(PB_10);
-PwmOut leftR(PC_7);
+
+PwmOut rightR(PA_7);
+PwmOut rightF(PB_6);
+
+PwmOut leftF(PC_7);
+PwmOut leftR(PB_10);
+
+
 InterruptIn encoderRightR(PB_3);
 InterruptIn encoderRightF(PA_15);
 InterruptIn encoderLeftR(PA_1);
 InterruptIn encoderLeftF(PC_4);
-
-//IR receivers and corresponding pins (directions relative to forward-facing rat)
-AnalogIn ir_r1(PC_0);       //far-left
-AnalogIn ir_r2(PC_1);       //Middle-left
-AnalogIn ir_r3(PA_4);       //Middle-right
-AnalogIn ir_r4(PA_0);       //far-right
-//IR emitters and corresponding pins
-DigitalOut ir_e1(PB_7);     //far-left
-DigitalOut ir_e2(PB_0);     //Middle-left
-DigitalOut ir_e3(PC_11);    //Middle-right
-DigitalOut ir_e4(PC_10);    //far-right
 
 Timer timer;
 
@@ -58,33 +49,43 @@ void stop() {    // stops mouse (turns motors to 0)
     rightR = 0;
     leftF = 0;
     leftR = 0;
-    wait(0.5);
+    wait(0.3);
+    return;
+}
+
+void turnL90() {   // turns 90 deg right
+    int temp = pulsesRight;
+    int temp2 = pulsesLeft;
+    pulsesRight = 0;
+    pulsesLeft = 0;
+    //int n = 2500*cells;
+    while(pulsesRight<2000){
+        rightF = 0.1;
+        rightR = 0;
+        leftF = 0;
+        leftR = 0.1;
+    }
+    pulsesRight = temp;
+    pulsesLeft = temp2;
+    stop();
     return;
 }
 
 void turnR90() {   // turns 90 deg right
     int temp = pulsesRight;
-    pulsesRight=0;
-    stop();
-    while(pulsesRight<750) {
-        rightF = 0.1;
-        leftR = 0.1;
-    }
-    stop();
-    pulsesRight = temp;
-    return;
-}
-
-void turnL90() {     // turns 90 deg left
-    int temp = pulsesRight;
-    pulsesRight=0;
-    stop();
-    while(pulsesRight<750) {
+    int temp2 = pulsesLeft;
+    pulsesRight = 0;
+    pulsesLeft = 0;
+    //int n = 2500*cells;
+    while(pulsesRight<2000){
+        rightF = 0;
         rightR = 0.1;
         leftF = 0.1;
+        leftR = 0;
     }
-    stop();
     pulsesRight = temp;
+    pulsesLeft = temp2;
+    stop();
     return;
 }
 
@@ -95,8 +96,8 @@ void forward(int cells) {   // moves forward num of cells
     while(pulsesRight<n){
         rightF = 0.1;
         rightR = 0;
-        leftF = 0.1;
-        leftR = 0;
+        leftF = 0;
+        leftR = 0.1;
     }
     pulsesRight = temp + pulsesRight;
     stop();
@@ -170,11 +171,15 @@ int main() {
     encoderLeftF.rise(&incrementLeft);
     encoderLeftF.fall(&incrementLeft);
     pc.baud(9600);
-    
+
+    turnR90();
+    /*
     while(1) {
         timer.start();
         led1 = 1;
         errorPulse = pulsesRight - pulsesLeft; //if errorPulse negative: left is faster than right
+
+
 
         //PROPORTIONAL
         speedChange = P_Controller(errorPulse); //can be neg or pos
@@ -189,8 +194,8 @@ int main() {
         speedL += speedChange;
 
          if (errorPulse == 0) { //if no error go normal speed
-            speedR = 0.2;
-            speedL = 0.2;
+            speedR = 0.4;
+            speedL = 0.4;
         }
                
         speedLeft(speedL);
@@ -201,17 +206,12 @@ int main() {
         //pc.printf("%f\r", speedChange);
         //pc.printf(" ");
         pc.printf("%d\r\n", errorPulse);
-        /*pc.printf(" ");
-         pc.printf("%d\r", pulsesRight);
-         pc.printf(" ");
-         pc.printf("%d\r\n", pulsesLeft);
-         pc.printf(" ");
-         pc.printf("%f\r", leftF.read());
-         pc.printf(" ");
-         pc.printf("%f\r\n", rightF.read());
-         */
+
          //pc.printf("error: %d\n", errorPulse);
        
         timer.stop();
-    }
+
+
+    } */
 }
+
