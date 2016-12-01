@@ -163,15 +163,14 @@ double I_Controller(int error)
 }
 
 
-int main() {
-    
+void systick() // PID implementation
+{
     encoderRightF.rise(&incrementRight);
     encoderRightF.fall(&incrementRight);
     encoderLeftF.rise(&incrementLeft);
     encoderLeftF.fall(&incrementLeft);
     pc.baud(9600);
     
-    while(1) {
         timer.start();
         led1 = 1;
         errorPulse = pulsesRight - pulsesLeft; //if errorPulse negative: left is faster than right
@@ -196,22 +195,35 @@ int main() {
         speedLeft(speedL);
         speedRight(speedR);
         
-        //pc.printf("%d\r", integral);
-        //pc.printf(" ");
-        //pc.printf("%f\r", speedChange);
-        //pc.printf(" ");
-        pc.printf("%d\r\n", errorPulse);
-        /*pc.printf(" ");
-         pc.printf("%d\r", pulsesRight);
-         pc.printf(" ");
-         pc.printf("%d\r\n", pulsesLeft);
-         pc.printf(" ");
-         pc.printf("%f\r", leftF.read());
-         pc.printf(" ");
-         pc.printf("%f\r\n", rightF.read());
-         */
-         //pc.printf("error: %d\n", errorPulse);
-       
         timer.stop();
+    
+}
+
+//move to the top -- put this here for clarity
+const int FRONT_L = 0;
+const int FRONT_R = 1;
+const int LEFT = 2;
+const int RIGHT = 3;
+//see above
+
+void IR_sensor(int direction)    //adjusts motor for IR_sensor reading in given direction
+{
+    //Let: 0=front_left, 1=front_right, 2=left, 3=right
+    switch(direction)
+    {
+        case FRONT_L: break;
+        case FRONT_R: break;
+        case LEFT: break;
+        case RIGHT: break;
+        default:
+            //add notification or error of some sort
+            break;
     }
+    
+}
+
+int main() {
+   Systicker.attach_us(&systick, 1000); //this line implements PID
+   //add code that checks all 4 directions and changes direction
+
 }
