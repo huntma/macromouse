@@ -162,56 +162,41 @@ double I_Controller(int error)
     return correction;
 }
 
-
-int main() {
-    
-    encoderRightF.rise(&incrementRight);
-    encoderRightF.fall(&incrementRight);
-    encoderLeftF.rise(&incrementLeft);
-    encoderLeftF.fall(&incrementLeft);
-    pc.baud(9600);
-    
-    while(1) {
+void systick() // PID implementation
+{
+      encoderRightF.rise(&incrementRight);
+      encoderRightF.fall(&incrementRight);
+      encoderLeftF.rise(&incrementLeft);
+      encoderLeftF.fall(&incrementLeft);
+      pc.baud(9600);
+      while(1) {
         timer.start();
         led1 = 1;
         errorPulse = pulsesRight - pulsesLeft; //if errorPulse negative: left is faster than right
-
         //PROPORTIONAL
         speedChange = P_Controller(errorPulse); //can be neg or pos
-        
         //DERIVATIVE
         speedChange += D_Controller(errorPulse); //when P neg, D is pos; this line not tested
-
         //INTEGRAL
         //speedChange += I_Controller(errorPulse);
-      
         speedR -= speedChange; //if speedChange neg (left is faster), speedR increases
         speedL += speedChange;
-
-         if (errorPulse == 0) { //if no error go normal speed
+        if (errorPulse == 0) { //if no error go normal speed
             speedR = 0.2;
             speedL = 0.2;
-        }
-               
-        speedLeft(speedL);
-        speedRight(speedR);
-        
+      }      
+      speedLeft(speedL);
+      speedRight(speedR);
         //pc.printf("%d\r", integral);
         //pc.printf(" ");
         //pc.printf("%f\r", speedChange);
         //pc.printf(" ");
-        pc.printf("%d\r\n", errorPulse);
-        /*pc.printf(" ");
-         pc.printf("%d\r", pulsesRight);
-         pc.printf(" ");
-         pc.printf("%d\r\n", pulsesLeft);
-         pc.printf(" ");
-         pc.printf("%f\r", leftF.read());
-         pc.printf(" ");
-         pc.printf("%f\r\n", rightF.read());
-         */
-         //pc.printf("error: %d\n", errorPulse);
-       
-        timer.stop();
+      pc.printf("%d\r\n", errorPulse);
+      timer.stop();
     }
+}
+
+int main() {
+    Systicker.attach_us(&systick, 1000); //this line implements PID
+
 }
