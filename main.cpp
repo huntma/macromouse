@@ -37,18 +37,23 @@ double Ki = 0.5;
 double speedChange = 0;     //holds P,I,D fn return values
 int integral = 0;
 double maxCorrect = 0.1;    //limits correction values
-double maxSpeed = 0.3;     //limits motor speed
-double minSpeed = 0.05;     //need this?
+double maxSpeed = 0.7;     //limits motor speed
+double minSpeed = 0.4;     //need this?
 double speedR = 0.1;        //for setting motor speed; accumulates
 double speedL = 0.1;
 int cnt=0;                  //for D
 int prevError = 0;  //for D
 
 
-    float baseMidRight = 0;
-    float baseMidLeft = 0;
-    float baseFarRight = 0;
-    float baseFarLeft = 0;
+float baseMidRight = 0;
+float baseMidLeft = 0;
+float baseFarRight = 0;
+float baseFarLeft = 0;
+
+float midRight = ir_r3.read();
+float midLeft = ir_r2.read();
+float farRight = ir_r4.read();
+float farLeft = ir_r1.read();
 
 
 
@@ -68,7 +73,9 @@ void stop() {    // stops mouse (turns motors to 0)
     rightR = 0;
     leftF = 0;
     leftR = 0;
-    wait(0.1);
+    wait(0.05);
+    farRight = ir_r4.read();
+    farLeft = ir_r1.read();
     return;
 }
 
@@ -77,12 +84,16 @@ void turnR90() {   // turns 90 deg right
     int temp2 = pulsesLeft;
     pulsesRight = 0;
     pulsesLeft = 0;
+
+    midRight = ir_r3.read();
     //int n = 2500*cells;
-    while(pulsesRight<300){
+    while(pulsesRight<200 || midRight > 0.35){
         rightF = 0.1;
         rightR = 0;
         leftF = 0;
         leftR = 0.1;
+        midRight = ir_r3.read();
+
     }
     pulsesRight = temp;
     pulsesLeft = temp2;
@@ -90,17 +101,19 @@ void turnR90() {   // turns 90 deg right
     return;
 }
 
-void turnL90() {   // turns 90 deg right
+void turnL90() {   // turns 90 deg right 
     int temp = pulsesRight;
     int temp2 = pulsesLeft;
     pulsesRight = 0;
     pulsesLeft = 0;
+    midLeft = ir_r2.read();
     //int n = 2500*cells;
-    while(pulsesLeft<300){
+    while(pulsesLeft<200 || midLeft > 0.35){
         rightF = 0;
         rightR = 0.1;
         leftF = 0.1;
         leftR = 0;
+        midLeft = ir_r2.read();
     }
     pulsesRight = temp;
     pulsesLeft = temp2;
@@ -108,37 +121,36 @@ void turnL90() {   // turns 90 deg right
     return;
 }
 
-/*
-//Not in use
-void forward(int cells) {   // moves forward num of cells
-    int temp = pulsesRight;
-    pulsesRight = 0;
-    int n = 2500*cells;
-    while(pulsesRight<n){
-        rightF = 0.1;
-        rightR = 0;
-        leftF = 0.1;
-        leftR = 0;
-    }
-    pulsesRight = temp + pulsesRight;
-    stop();
-    return;
-}*/
-
-int speedLeft(double speed){    // writes the speed of left motor (checks if valid)
-    if (speed < maxSpeed){
+void speedLeft(double speed){    // writes the speed of left motor (checks if valid)
+    if ((speed < maxSpeed) && (speed > minSpeed)){
         leftF.write(speed);
-        return 1;
+        return;
+    }else if(speed > maxSpeed){
+        leftF.write(maxSpeed);
+        return;
+    }else if(speed < minSpeed){
+        leftF.write(minSpeed);
+        return;
+    }else{
+        leftF.write(minSpeed);
     }
-    return 0;
+    return;
 }
 
-int speedRight(double speed){    // writes speed of right motor (checks if valid)
-    if (speed < maxSpeed){
+void speedRight(double speed){    // writes speed of right motor (checks if valid)
+    if ((speed < maxSpeed) && (speed > minSpeed)){
         rightF.write(speed);
-        return 1;
+        return;
+    }else if(speed > maxSpeed){
+        rightF.write(maxSpeed);
+        return;
+    }else if(speed < minSpeed){
+        rightF.write(minSpeed);
+        return;
+    }else{
+        rightF.write(minSpeed);
     }
-    return 0;
+    return;
 }
 
 void resetSpeed(double speed){    // resets forward speeds to input
@@ -186,29 +198,31 @@ double I_Controller(int error)
 }
 
 
-void aheadTest(float midRight, float midLeft, float farRight, float farLeft)
+void aheadTest()
 {
-    if(midRight >= 0.825 || midLeft >= 0.825){
-        pc.printf("hi\r\n");
+        midRight = ir_r3.read();
+        midLeft = ir_r2.read();
+    if(midRight >= 0.325 || midLeft >= 0.325){
+        //pc.printf("hi\r\n");
         stop();
-
+        farRight = ir_r4.read();
+        farLeft = ir_r1.read();
         if (farRight > farLeft) {
-            pc.printf("turnLeft\r\n");
+            //pc.printf("turnLeft\r\n");
             turnL90();
         }
-        else {
-            pc.printf("turnRight\r\n");
+        else if(farLeft > farRight){
+            //pc.printf("turnRight\r\n");
             turnR90();
         }
     } 
-
     return;
 }
 
 int main() {
     
-	wait(1);
-	
+  wait(0);
+  
     encoderRightF.rise(&incrementRight);
     encoderRightF.fall(&incrementRight);
     encoderLeftF.rise(&incrementLeft);
@@ -217,7 +231,7 @@ int main() {
 
     int i = 0;
 
-    while(i < 100){	//if trying to avg 100, need +=
+    while(i < 100){ //if trying to avg 100, need +=
         ir_e4 = 1;
         ir_e3 = 1;
         ir_e2 = 1;
@@ -233,7 +247,10 @@ int main() {
     baseMidRight /= 100;
     baseFarRight /= 100;
     baseFarLeft /= 100;
-	
+
+    speedR = 0.6;
+    speedL = 0.6;
+      
 
     while(1) {
 
@@ -245,15 +262,17 @@ int main() {
         ir_e2 = 1;
         ir_e1 = 1;
 
-        float midRight = ir_r3.read();
-        float midLeft = ir_r2.read();
-        float farRight = ir_r4.read();
-        float farLeft = ir_r1.read();
+        midRight = ir_r3.read();
+        midLeft = ir_r2.read();
+        farRight = ir_r4.read();
+        farLeft = ir_r1.read();
 
-        aheadTest(midRight, midLeft, farRight, farLeft);
+        //pc.printf("%f\r %f\r %f\r %f\r\n", farLeft, midLeft, midRight, farLeft);
+
+
+
+        aheadTest();
         errorPulse = pulsesLeft - pulsesRight; //if errorPulse negative: left is faster than right
-
-        //when front sensors go over 0.2, ignore sides
 
         //--------IR PID-----------
 
@@ -262,46 +281,89 @@ int main() {
         float changeFarRight = farRight - baseFarRight;
         float changeFarLeft = farLeft - baseFarLeft;
 
-        int enc_pid = 1;	//toggles encoder or IR PID
-		
-		if((changeMidRight + changeMidLeft)*0.5 > 0.1) {	//only use IR when not approach corner
-			if(changeFarRight > 0.1){ //approaching right wall
-				speedR += 0.1;
-				pulsesRight=0;
-				pulsesLeft=0;
-				enc_pid=0;
-			}else if(changeFarLeft > 0.1){
-				speedL += 0.1;
-				pulsesRight=0;
-				pulsesLeft=0;
-				enc_pid=0;
-			}
+        int enc_pid = 1;  //toggles encoder or IR PID
+    
+    if(farLeft > 0.6 || farRight > 0.6) {  //only use IR when not approach corner
+      if(farRight > 0.6){ //approaching right wall
+        speedL += 2.5 * midRight;
+        pulsesRight=0;
+        pulsesLeft=0;
+        enc_pid=0;
+      }else if(farLeft > 0.6){
+        speedR += 2.5 * midRight;
+        pulsesRight=0;
+        pulsesLeft=0;
+        enc_pid=0;
+      }
+    }
+    
 
-		}
+    /*
+    if(farRight < 0.6){ //approaching right wall
+        speedR = 0.1;
+        pulsesRight=0;
+        pulsesLeft=0;
+        enc_pid=0;
+    }else if(farLeft < 0.6){
+        speedL =0.1;
+        pulsesRight=0;
+        pulsesLeft=0;
+        enc_pid=0;
+    }
+   
+    if(midRight > 0.6){ //approaching right wall
+        speedR = 0.2;
+        pulsesRight=0;
+        pulsesLeft=0;
+        enc_pid=0;
+    }else if(midLeft > 0.6){
+        speedL =0.2;
+        pulsesRight=0;
+        pulsesLeft=0;
+        enc_pid=0;
+    }
+    if(midRight > 0.8){ //approaching right wall
+        speedR = 0.3;
+        pulsesRight=0;
+        pulsesLeft=0;
+        enc_pid=0;
+    }else if(midLeft > 0.8){
+        speedL =0.3;
+        pulsesRight=0;
+        pulsesLeft=0;
+        enc_pid=0;
+    }
 
-        if(enc_pid) {
-			//PROPORTIONAL
-			speedChange = P_Controller(errorPulse); //can be neg or pos
-			
-			//DERIVATIVE
-			speedChange += D_Controller(errorPulse); //when P neg, D is pos; this line not tested
+    */
 
-			//INTEGRAL
-			//speedChange += I_Controller(errorPulse);
-		  
-			speedR -= speedChange; //if speedChange neg (left is faster), speedR increases
-			speedL += speedChange;
+    if(enc_pid) {
+      //PROPORTIONAL
+      speedChange = P_Controller(errorPulse); //can be neg or pos
+      
+      //DERIVATIVE
+      speedChange += D_Controller(errorPulse); //when P neg, D is pos; this line not tested
 
-			 if (errorPulse == 0) { //if no error go normal speed
-				speedR = 0.2;
-				speedL = 0.2;
-			}
-		}
-               
+      //INTEGRAL
+      //speedChange += I_Controller(errorPulse);
+      
+      speedR -= speedChange; //if speedChange neg (left is faster), speedR increases
+      speedL += speedChange;
+
+       if (errorPulse == 0) { //if no error go normal speed
+        speedR = 0.2;
+        speedL = 0.2;
+      }
+    }
+
         speedLeft(speedL);
         speedRight(speedR);
+
+        //pc.printf("%f\r %f\r\n", speedL, speedR);
+
+        speedL = 0;
+        speedR = 0;
         
-        pc.printf("%d\r\n", errorPulse);
+        
 
         timer.stop();
         
