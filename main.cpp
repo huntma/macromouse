@@ -200,10 +200,16 @@ double I_Controller(int error)
 
 void aheadTest()
 {
+<<<<<<< Updated upstream
         midRight = ir_r3.read();
         midLeft = ir_r2.read();
     if(midRight >= 0.325 || midLeft >= 0.325){
         //pc.printf("hi\r\n");
+=======
+    if(midRight >= 0.825 || midLeft >= 0.825){
+<<<<<<< Updated upstream
+        pc.printf("hi\r\n");
+>>>>>>> Stashed changes
         stop();
         farRight = ir_r4.read();
         farLeft = ir_r1.read();
@@ -219,6 +225,23 @@ void aheadTest()
     return;
 }
 
+=======
+        stop();
+
+        if (farRight > farLeft){
+            turnL90();
+        }else{
+            turnR90();
+        }
+
+
+    } 
+}
+
+
+
+
+>>>>>>> Stashed changes
 int main() {
     
   wait(0);
@@ -229,6 +252,7 @@ int main() {
     encoderLeftF.fall(&incrementLeft);
     pc.baud(9600);
 
+<<<<<<< Updated upstream
     int i = 0;
 
     while(i < 100){ //if trying to avg 100, need +=
@@ -252,10 +276,36 @@ int main() {
     speedL = 0.6;
       
 
+=======
+    /*
+    ir_e1     //far-left
+    ir_e2    //Middle-left
+    ir_e3    //Middle-right
+    ir_e4    //far-right
+    */
+    
+>>>>>>> Stashed changes
     while(1) {
 
         timer.start();
+
+        ir_e4 = 1;
+        ir_e3 = 1;
+        ir_e2 = 1;
+        ir_e1 = 1;
+
+        float midRight = ir_r3.read();
+        float midLeft = ir_r2.read();
+        float farRight = ir_r4.read();
+        float farLeft = ir_r1.read();
+
+        pc.printf("%f\r  %f\r %f\r %f\r\n", ir_r1.read(),ir_r2.read(),ir_r3.read(),ir_r4.read());
+    
+        //aheadTest(midRight, midLeft, farRight, farLeft);
+
+
         led1 = 1;
+<<<<<<< Updated upstream
         
         ir_e4 = 1;
         ir_e3 = 1;
@@ -281,6 +331,7 @@ int main() {
         float changeFarRight = farRight - baseFarRight;
         float changeFarLeft = farLeft - baseFarLeft;
 
+<<<<<<< Updated upstream
         int enc_pid = 1;  //toggles encoder or IR PID
     
     if(farLeft > 0.6 || farRight > 0.6) {  //only use IR when not approach corner
@@ -355,6 +406,66 @@ int main() {
       }
     }
 
+=======
+        int enc_pid = 1;	//toggles encoder or IR PID
+		
+		if((changeMidRight + changeMidLeft)*0.5 > 0.1) {	//only use IR when not approach corner
+			if(changeFarRight > 0.1){ //approaching right wall
+				speedR += 0.1;
+				pulsesRight=0;
+				pulsesLeft=0;
+				enc_pid=0;
+			}else if(changeFarLeft > 0.1){
+				speedL += 0.1;
+				pulsesRight=0;
+				pulsesLeft=0;
+				enc_pid=0;
+			}
+
+		}
+
+        if(enc_pid) {
+			//PROPORTIONAL
+			speedChange = P_Controller(errorPulse); //can be neg or pos
+			
+			//DERIVATIVE
+			speedChange += D_Controller(errorPulse); //when P neg, D is pos; this line not tested
+
+			//INTEGRAL
+			//speedChange += I_Controller(errorPulse);
+		  
+			speedR -= speedChange; //if speedChange neg (left is faster), speedR increases
+			speedL += speedChange;
+
+			 if (errorPulse == 0) { //if no error go normal speed
+				speedR = 0.2;
+				speedL = 0.2;
+			}
+		}
+=======
+
+
+        errorPulse = pulsesRight - pulsesLeft; //if errorPulse negative: left is faster than right
+
+        //PROPORTIONAL
+        speedChange = P_Controller(errorPulse); //can be neg or pos
+        
+        //DERIVATIVE
+        speedChange += D_Controller(errorPulse); //when P neg, D is pos; this line not tested
+
+        //INTEGRAL
+        //speedChange += I_Controller(errorPulse);
+      
+        speedR -= speedChange; //if speedChange neg (left is faster), speedR increases
+        speedL += speedChange;
+
+         if (errorPulse == 0) { //if no error go normal speed
+            speedR = 0.1;
+            speedL = 0.1;
+        }
+>>>>>>> Stashed changes
+               
+>>>>>>> Stashed changes
         speedLeft(speedL);
         speedRight(speedR);
 
