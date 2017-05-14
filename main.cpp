@@ -2,18 +2,19 @@
 
 DigitalOut led1(LED1);
 
-PwmOut leftF(PA_7);
-PwmOut leftR(PB_6);
+PwmOut leftF(PC_7); //for rat pa7
+PwmOut leftR(PC_6); //for rat pb6
 
-PwmOut rightR(PC_7);
-PwmOut rightF(PB_10);
+PwmOut rightR(PA_2); //for rat: pc7     
+PwmOut rightF(PA_3); //for rat: pb10
+
+InterruptIn encoderRightR(PB_3); //rat pb3
+InterruptIn encoderRightF(PA_15); //rat pa15
+InterruptIn encoderLeftR(PA_1); //rat pa1
+InterruptIn encoderLeftF(PC_4); //rat
 
 
-InterruptIn encoderRightR(PB_3);
-InterruptIn encoderRightF(PA_15);
-InterruptIn encoderLeftR(PA_1);
-InterruptIn encoderLeftF(PC_4);
-
+//TODO change these
 //IR receivers and corresponding pins (directions relative to forward-facing rat)
 AnalogIn ir_r1(PC_0);       //far-left
 AnalogIn ir_r2(PC_1);       //Middle-left
@@ -72,54 +73,53 @@ void stop() {    // stops mouse (turns motors to 0)
     leftF = 0;
     leftR = 0;
     wait(0.05);
-	farRight = ir_r4.read();
+    farRight = ir_r4.read();
     farLeft = ir_r1.read();
     return;
 }
 
 void turnR90() {   // turns 90 deg right
-	turning = 1;
+    turning = 1;
     int temp = pulsesRight;
     int temp2 = pulsesLeft;
     pulsesRight = 0;
     pulsesLeft = 0;
+    
     midRight = ir_r3.read();
-	
-	rightF.write(0);
-	rightR.write(0.1);
-	leftF.write(0.1);
-	leftR.write(0);
     while(pulsesLeft<1000 && midRight > 0.35){
-		pc.printf("pulsesLeft:%d              midRight:%f\r\n", pulsesLeft, midRight);
-		midRight = ir_r3.read();
-    }
-	stop();
-    pulsesRight = temp;
-    pulsesLeft = temp2;
-	turning = 0;
-    return;
-}
-
-void turnL90() {   // turns 90 deg right
-	turning = 1;
-    int temp = pulsesRight;
-    int temp2 = pulsesLeft;
-    pulsesRight = 0;
-    pulsesLeft = 0;
-	midLeft = ir_r2.read();
-	
-	rightF.write(0.1);
-	rightR.write(0);
-	leftF.write(0);
-	leftR.write(0.1);
-    while(pulsesRight<1000 && midLeft > 0.35){
-		pc.printf("pulsesRight:%d\r\n", pulsesRight);
-		midLeft = ir_r2.read();
+        pc.printf("pulsesLeft:%d              midRight:%f\r\n", pulsesLeft, midRight);
+        rightF.write(0.1);
+        rightR.write(0);
+        leftF.write(0);
+        leftR.write(0.1);
+        midRight = ir_r3.read();
     }
     pulsesRight = temp;
     pulsesLeft = temp2;
     stop();
-	turning = 0;
+    turning = 0;
+    return;
+}
+
+void turnL90() {   // turns 90 deg right
+    turning = 1;
+    int temp = pulsesRight;
+    int temp2 = pulsesLeft;
+    pulsesRight = 0;
+    pulsesLeft = 0;
+    midLeft = ir_r2.read();
+    while(pulsesRight<1000 && midLeft > 0.35){
+        pc.printf("pulsesRight:%d\r\n", pulsesRight);
+        rightF.write(0);
+        rightR.write(0.1);
+        leftF.write(0.1);
+        leftR.write(0);
+        midLeft = ir_r2.read();
+    }
+    pulsesRight = temp;
+    pulsesLeft = temp2;
+    stop();
+    turning = 0;
     return;
 }
 
@@ -213,11 +213,11 @@ double I_Controller(int error)
 
 void aheadTest()
 {
-	pc.printf("test farLeft: %f         farRight:%f\r\n", farLeft, farRight);
-	midRight = ir_r3.read();
-	midLeft = ir_r2.read();
+    pc.printf("test farLeft: %f         farRight:%f\r\n", farLeft, farRight);
+    midRight = ir_r3.read();
+    midLeft = ir_r2.read();
     if(midRight >= 0.325 || midLeft >= 0.325){
-		farRight = ir_r4.read();
+        farRight = ir_r4.read();
         farLeft = ir_r1.read();
         if (farRight > farLeft+0.1) {
             turnL90();
@@ -231,107 +231,129 @@ void aheadTest()
 
 void systick() {
 
-	//pc.printf("%f\r %f\r %f\r %f\r\n", farLeft, midLeft, midRight, farLeft);
+    //pc.printf("%f\r %f\r %f\r %f\r\n", farLeft, midLeft, midRight, farLeft);
 
-	errorPulse = pulsesLeft - pulsesRight; //if errorPulse negative: left is faster than right
+    errorPulse = pulsesLeft - pulsesRight; //if errorPulse negative: left is faster than right
 
-	//--------IR PID-----------
-	
-	midRight = ir_r3.read();
-	midLeft = ir_r2.read();
-	farRight = ir_r4.read();
-	farLeft = ir_r1.read();
-	
-	if(!turning) {
-	
-	if(farLeft > 0.6 || farRight > 0.6) {  //only use IR when not approach corner
-		if(farRight > 0.6){ //approaching right wall
-			speedChange -= 0.1 * midRight;	//need to add proportional
-//			pulsesRight=0;
-//			pulsesLeft=0;
-		}else if(farLeft > 0.6){
-			speedChange += 0.1 * midLeft;
-//			pulsesRight=0;
-//			pulsesLeft=0;
-		}	
-		speedR -= speedChange;
-		speedL += speedChange;
-	}
+    //--------IR PID-----------
+    
+    midRight = ir_r3.read();
+    midLeft = ir_r2.read();
+    farRight = ir_r4.read();
+    farLeft = ir_r1.read();
+    
+    if(!turning) {
+    
+    if(farLeft > 0.6 || farRight > 0.6) {  //only use IR when not approach corner
+        if(farRight > 0.6){ //approaching right wall
+            speedChange -= 0.1 * midRight;  //need to add proportional
+//          pulsesRight=0;
+//          pulsesLeft=0;
+        }else if(farLeft > 0.6){
+            speedChange += 0.1 * midLeft;
+//          pulsesRight=0;
+//          pulsesLeft=0;
+        }   
+        speedR -= speedChange;
+        speedL += speedChange;
+    }
 
-	else{
-		//PROPORTIONAL
-		speedChange = P_Controller(errorPulse); //can be neg or pos
-		
-		//DERIVATIVE
-		speedChange += D_Controller(errorPulse); //when P neg, D is pos; this line not tested
+    else{
+        //PROPORTIONAL
+        speedChange = P_Controller(errorPulse); //can be neg or pos
+        
+        //DERIVATIVE
+        speedChange += D_Controller(errorPulse); //when P neg, D is pos; this line not tested
 
-		//INTEGRAL
-		//speedChange += I_Controller(errorPulse);
-	  
-		speedR += speedChange; //if speedChange neg (left is faster), speedR increases
-		speedL -= speedChange;
+        //INTEGRAL
+        //speedChange += I_Controller(errorPulse);
+      
+        speedR += speedChange; //if speedChange neg (left is faster), speedR increases
+        speedL -= speedChange;
 
-		if (errorPulse == 0) { //if no error go normal speed
-			speedR = 0.2;
-			speedL = 0.2;
-		}
-	}
-		   
-	speedLeft(speedL);
-	speedRight(speedR);
-	
-	//pc.printf("%f\r %f\r\n", speedL, speedR);
-	}
-	
-	speedL = 0;
-	speedR = 0;
+        if (errorPulse == 0) { //if no error go normal speed
+            speedR = 0.2;
+            speedL = 0.2;
+        }
+    }
+           
+    speedLeft(speedL);
+    speedRight(speedR);
+    
+    //pc.printf("%f\r %f\r\n", speedL, speedR);
+    }
+    
+    speedL = 0;
+    speedR = 0;
 
 
 }
 
 int main() {
-<<<<<<< HEAD
+/*
+    encoderRightF.rise(&incrementRight);
+    encoderRightF.fall(&incrementRight);
+    encoderLeftF.rise(&incrementLeft);
+    encoderLeftF.rise(&incrementLeft);
+    encoderLeftF.fall(&incrementLeft);
+    pc.baud(9600);
+    led1 = 1;
+    
+    wait(1);
+    
+    ir_e4 = 1;
+    ir_e3 = 1;
+    ir_e2 = 1;
+    ir_e1 = 1;
 
-	encoderRightF.rise(&incrementRight);
-	encoderRightF.fall(&incrementRight);
-	encoderLeftF.rise(&incrementLeft);
-	encoderLeftF.rise(&incrementLeft);
-	encoderLeftF.fall(&incrementLeft);
-	pc.baud(9600);
-	led1 = 1;
-	
-	wait(1);
-	
-	ir_e4 = 1;
-	ir_e3 = 1;
-	ir_e2 = 1;
-	ir_e1 = 1;
+    int i = 0;
+    while(i < 100){ //if trying to avg 100, need +=
+        ir_e4 = 1;
+        ir_e3 = 1;
+        ir_e2 = 1;
+        ir_e1 = 1;
+        baseMidRight += ir_r3.read();
+        baseMidLeft += ir_r2.read();
+        baseFarRight += ir_r4.read();
+        baseFarLeft += ir_r1.read();
+        i++;
+    }
 
-	int i = 0;
-	while(i < 100){	//if trying to avg 100, need +=
-		ir_e4 = 1;
-		ir_e3 = 1;
-		ir_e2 = 1;
-		ir_e1 = 1;
-		baseMidRight += ir_r3.read();
-		baseMidLeft += ir_r2.read();
-		baseFarRight += ir_r4.read();
-		baseFarLeft += ir_r1.read();
-		i++;
-	}
-
-	baseMidLeft /= 100;
-	baseMidRight /= 100;
-	baseFarRight /= 100;
-	baseFarLeft /= 100;
-	speedR = 0.2;
-	speedL = 0.2;
-	
-	//need this after the setup
-	Systicker.attach_us(&systick, 10000);
-	
+    baseMidLeft /= 100;
+    baseMidRight /= 100;
+    baseFarRight /= 100;
+    baseFarLeft /= 100;
+    
+    speedR = 0.2;
+    speedL = 0.2;
+    
+    //need this after the setup
+    Systicker.attach_us(&systick, 10000);
+    
     while(1) {
-		aheadTest();   
-	   
+        aheadTest();   
+       
+    }
+    */
+    
+    encoderRightF.rise(&incrementRight);
+    encoderRightF.fall(&incrementRight);
+    encoderLeftF.rise(&incrementLeft);
+    encoderLeftF.rise(&incrementLeft);
+    encoderLeftF.fall(&incrementLeft);
+    pc.baud(9600);
+    
+    rightF.write(0.1);
+    rightR.write(0);
+    
+    wait(1);
+    
+    rightF.write(0);
+        
+    leftF.write(0.1);
+    leftR.write(0);
+    
+    while (1) {
+        pc.printf("pulsesLeft:%d", 1);
     }
 }
