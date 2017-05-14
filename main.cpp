@@ -290,6 +290,7 @@ void systick() {
 }
 
 int main() {
+<<<<<<< HEAD
 
 	encoderRightF.rise(&incrementRight);
 	encoderRightF.fall(&incrementRight);
@@ -323,7 +324,6 @@ int main() {
 	baseMidRight /= 100;
 	baseFarRight /= 100;
 	baseFarLeft /= 100;
-	
 	speedR = 0.2;
 	speedL = 0.2;
 	
