@@ -15,10 +15,10 @@ InterruptIn encoderRightR(PA_2);
 InterruptIn encoderRightF(PA_3);
 
 //IR receivers and corresponding pins (directions relative to forward-facing rat)
-AnalogIn ir_r1(PC_0);       //far-left
-AnalogIn ir_r2(PC_1);       //Middle-left
-AnalogIn ir_r3(PA_4);       //Middle-right
-AnalogIn ir_r4(PA_0);       //far-right
+AnalogIn ir_r1(PC_3);       //far-left
+AnalogIn ir_r2(PC_2);       //Middle-left
+AnalogIn ir_r3(PC_1);       //Middle-right
+AnalogIn ir_r4(PC_0);       //far-right
 //IR emitters and corresponding pins
 DigitalOut ir_e1(PB_7);     //far-left
 DigitalOut ir_e2(PB_0);     //Middle-left
