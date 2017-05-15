@@ -5,16 +5,15 @@ DigitalOut led1(LED1);
 PwmOut leftF(PC_7); //for rat pa7
 PwmOut leftR(PC_6); //for rat pb6
 
-PwmOut rightR(PA_2); //for rat: pc7     
-PwmOut rightF(PA_3); //for rat: pb10
+PwmOut rightR(PC_9); //for rat: pc7     
+PwmOut rightF(PC_8); //for rat: pb10
 
-InterruptIn encoderRightR(PB_3); //rat pb3
-InterruptIn encoderRightF(PA_15); //rat pa15
-InterruptIn encoderLeftR(PA_1); //rat pa1
-InterruptIn encoderLeftF(PC_4); //rat
+InterruptIn encoderLeftR(PA_1);
+InterruptIn encoderLeftF(PA_0);
 
+InterruptIn encoderRightR(PA_2);
+InterruptIn encoderRightF(PA_3);
 
-//TODO change these
 //IR receivers and corresponding pins (directions relative to forward-facing rat)
 AnalogIn ir_r1(PC_0);       //far-left
 AnalogIn ir_r2(PC_1);       //Middle-left
@@ -46,11 +45,6 @@ int cnt=0;                  //for D
 int prevError = 0;  //for D
 int turning = 0;
 
-
-float baseMidRight = 0;
-float baseMidLeft = 0;
-float baseFarRight = 0;
-float baseFarLeft = 0;
 float midRight = ir_r3.read();
 float midLeft = ir_r2.read();
 float farRight = ir_r4.read();
@@ -230,7 +224,7 @@ void aheadTest()
 }
 
 void systick() {
-
+    /*
     //pc.printf("%f\r %f\r %f\r %f\r\n", farLeft, midLeft, midRight, farLeft);
 
     errorPulse = pulsesLeft - pulsesRight; //if errorPulse negative: left is faster than right
@@ -286,74 +280,26 @@ void systick() {
     speedL = 0;
     speedR = 0;
 
-
+*/
 }
 
 int main() {
-/*
-    encoderRightF.rise(&incrementRight);
-    encoderRightF.fall(&incrementRight);
-    encoderLeftF.rise(&incrementLeft);
-    encoderLeftF.rise(&incrementLeft);
-    encoderLeftF.fall(&incrementLeft);
-    pc.baud(9600);
-    led1 = 1;
-    
-    wait(1);
-    
-    ir_e4 = 1;
-    ir_e3 = 1;
-    ir_e2 = 1;
-    ir_e1 = 1;
-
-    int i = 0;
-    while(i < 100){ //if trying to avg 100, need +=
-        ir_e4 = 1;
-        ir_e3 = 1;
-        ir_e2 = 1;
-        ir_e1 = 1;
-        baseMidRight += ir_r3.read();
-        baseMidLeft += ir_r2.read();
-        baseFarRight += ir_r4.read();
-        baseFarLeft += ir_r1.read();
-        i++;
-    }
-
-    baseMidLeft /= 100;
-    baseMidRight /= 100;
-    baseFarRight /= 100;
-    baseFarLeft /= 100;
-    
-    speedR = 0.2;
-    speedL = 0.2;
-    
-    //need this after the setup
-    Systicker.attach_us(&systick, 10000);
-    
-    while(1) {
-        aheadTest();   
-       
-    }
-    */
     
     encoderRightF.rise(&incrementRight);
     encoderRightF.fall(&incrementRight);
-    encoderLeftF.rise(&incrementLeft);
+
     encoderLeftF.rise(&incrementLeft);
     encoderLeftF.fall(&incrementLeft);
+
     pc.baud(9600);
-    
-    rightF.write(0.1);
-    rightR.write(0);
-    
-    wait(1);
-    
-    rightF.write(0);
         
     leftF.write(0.1);
     leftR.write(0);
+
+    rightF.write(0.05);
+    rightR.write(0);
     
     while (1) {
-        pc.printf("pulsesLeft:%d", 1);
+        pc.printf("pulsesLeft:%d pulsesRight:%d \n", pulsesLeft, pulsesRight);
     }
 }
