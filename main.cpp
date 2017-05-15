@@ -19,11 +19,12 @@ AnalogIn ir_r1(PC_3);       //far-left
 AnalogIn ir_r2(PC_2);       //Middle-left
 AnalogIn ir_r3(PC_1);       //Middle-right
 AnalogIn ir_r4(PC_0);       //far-right
+
 //IR emitters and corresponding pins
-DigitalOut ir_e1(PB_7);     //far-left
-DigitalOut ir_e2(PB_0);     //Middle-left
-DigitalOut ir_e3(PC_11);    //Middle-right
-DigitalOut ir_e4(PC_10);    //far-right
+DigitalOut ir_e1(PB_13);     //far-left
+DigitalOut ir_e2(PB_12);     //Middle-left
+DigitalOut ir_e3(PB_1);    //Middle-right
+DigitalOut ir_e4(PB_0);    //far-right
 
 Timer timer;
 Ticker Systicker;
