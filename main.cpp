@@ -8,23 +8,23 @@ PwmOut leftR(PC_6); //for rat pb6
 PwmOut rightR(PC_9); //for rat: pc7     
 PwmOut rightF(PC_8); //for rat: pb10
 
-InterruptIn encoderLeftR(PA_1);
-InterruptIn encoderLeftF(PA_0);
+InterruptIn encoderLeftR(PA_0);
+InterruptIn encoderLeftF(PA_1);
 
 InterruptIn encoderRightR(PA_2);
 InterruptIn encoderRightF(PA_3);
 
 //IR receivers and corresponding pins (directions relative to forward-facing rat)
-AnalogIn ir_r1(PC_3);       //far-left
-AnalogIn ir_r2(PC_2);       //Middle-left
-AnalogIn ir_r3(PC_1);       //Middle-right
-AnalogIn ir_r4(PC_0);       //far-right
+AnalogIn ir_r1(PC_3);       //far left
+AnalogIn ir_r2(PC_2);       //mid left
+AnalogIn ir_r3(PC_1);       //mid right
+AnalogIn ir_r4(PC_0);       //far right
 
 //IR emitters and corresponding pins
-DigitalOut ir_e1(PB_13);     //far-left
-DigitalOut ir_e2(PB_12);     //Middle-left
-DigitalOut ir_e3(PB_1);    //Middle-right
-DigitalOut ir_e4(PB_0);    //far-right
+DigitalOut ir_e1(PB_13);    //far left 
+DigitalOut ir_e2(PB_12);    //mid left
+DigitalOut ir_e3(PB_1);    ///mid right
+DigitalOut ir_e4(PB_0);    ///far right
 
 Timer timer;
 Ticker Systicker;
@@ -46,10 +46,10 @@ int cnt=0;                  //for D
 int prevError = 0;  //for D
 int turning = 0;
 
+float farLeft =  ir_r1.read();
+float midLeft =  ir_r2.read();
 float midRight = ir_r3.read();
-float midLeft = ir_r2.read();
 float farRight = ir_r4.read();
-float farLeft = ir_r1.read();
 
 Serial pc(PA_9, PA_10); //set serial
 
@@ -225,7 +225,7 @@ void aheadTest()
 }
 
 void systick() {
-    /*
+   /* 
     //pc.printf("%f\r %f\r %f\r %f\r\n", farLeft, midLeft, midRight, farLeft);
 
     errorPulse = pulsesLeft - pulsesRight; //if errorPulse negative: left is faster than right
@@ -301,6 +301,25 @@ int main() {
     rightR.write(0);
     
     while (1) {
-        pc.printf("pulsesLeft:%d pulsesRight:%d \n", pulsesLeft, pulsesRight);
+			ir_e1 = 1;
+			farLeft = ir_r1.read();
+			ir_e1 = 0;
+			
+			ir_e2 = 1;
+			midLeft = ir_r2.read();
+			ir_e2 = 0;
+			
+			ir_e3 = 1;
+			midRight = ir_r3.read();
+			ir_e3 = 0;
+
+			ir_e4 = 1;
+			farRight = ir_r4.read();
+			ir_e4 = 0;
+
+			pc.printf("%f %f %f %f \n", farLeft, midLeft, midRight, farRight);
+			
+			//pc.printf("\n");
+      pc.printf("pulsesLeft:%d pulsesRight:%d \n", pulsesLeft, pulsesRight);
     }
 }
