@@ -1,6 +1,6 @@
 #include "mbed.h"
 
-DigitalOut onled(PC_11);
+DigitalOut onled(PC_11); //indicator light
 
 Serial pc(PA_9, PA_10); //set serial
 
@@ -17,39 +17,84 @@ InterruptIn encoderRightR(PA_2);
 InterruptIn encoderRightF(PA_3);
 
 //IR receivers and corresponding pins (directions relative to forward-facing rat)
-AnalogIn ir_r1(PC_3);       //far left
-AnalogIn ir_r2(PC_2);       //mid left
-AnalogIn ir_r3(PC_1);       //mid right
-AnalogIn ir_r4(PC_0);       //far right
+AnalogIn rL(PC_3);       //far left
+AnalogIn rML(PC_2);       //mid left
+AnalogIn rMR(PC_1);       //mid right
+AnalogIn rR(PC_0);       //far right
 
 //IR emitters and corresponding pins
-DigitalOut ir_e1(PB_13);    //far left 
-DigitalOut ir_e2(PB_12);    //mid left
-DigitalOut ir_e3(PB_1);    ///mid right
-DigitalOut ir_e4(PB_0);    ///far right
+DigitalOut eL(PB_13);    //far left 
+DigitalOut eML(PB_12);    //mid left
+DigitalOut eMR(PB_1);    ///mid right
+DigitalOut eR(PB_0);    ///far right
+
+float offsetL;
+float offsetML;
+float offsetMR;
+float offsetR;
+
+class cell
+{
+	public:
+		cell(int d)
+		{
+			dist = d;
+			n=0;s=0;e=0;w=0;
+		}
+		int dist;
+		bool n,s,e,w;	//north south east west
+};
+/*
+int mapdim=16;
+for(i=0; i<mapdim; i++)
+	for(j=0; j<mapdim; j++)
+		map[i][j] = new cell(mapdim + 
+*/
+cell map[16][16] = {
+{15,14,13,12,11,10,9,8,8,9,10,11,12,13,14,15},
+{14,13,12,11,10,9,8,7,7,8,9,10,11,12,13,14},
+{13,12,11,10,9,8,7,6,6,7,8,9,10,11,12,13},
+{12,11,10,9,8,7,6,5,5,6,7,8,9,10,11,12},
+{11,10,9,8,7,6,5,4,4,5,6,7,8,9,10,11},
+{10,9,8,7,6,5,4,3,3,4,5,6,7,8,9,10},
+{9,8,7,6,5,4,3,2,2,3,4,5,6,7,8,9},
+{8,7,6,5,4,3,2,1,1,2,3,4,5,6,7,8},
+{8,7,6,5,4,3,2,1,1,2,3,4,5,6,7,8},
+{9,8,7,6,5,4,3,2,2,3,4,5,6,7,8,9},
+{10,9,8,7,6,5,4,3,3,4,5,6,7,8,9,10},
+{11,10,9,8,7,6,5,4,4,5,6,7,8,9,10,11},
+{12,11,10,9,8,7,6,5,5,6,7,8,9,10,11,12},
+{13,12,11,10,9,8,7,6,6,7,8,9,10,11,12,13},
+{14,13,12,11,10,9,8,7,7,8,9,10,11,12,13,14},
+{15,14,13,12,11,10,9,8,8,9,10,11,12,13,14,15}
+};
+
+int x=0;
+int y=0;
+int curbr=2; //1 for north, 2 for east, 3 south, 4 west
 
 Timer timer;
-//Ticker Systicker;
+Ticker Systicker;
 
 //constants for the code
-volatile unsigned long pulsesRight = 0;
-volatile unsigned long pulsesLeft = 0;
-int errorPulse = 1;
 double Kp = 0.00015;   // arbitrary values
 double Kd = 0.02;
 double Ki = 0.5;
-double speedChange = 0;     //holds P,I,D fn return values
+
+double maxCorrect = 0.1;   //limits correction values
+double maxSpeed = 0.1;     //limits motor speed
+double minSpeed = 0.05;
+
+volatile unsigned long pulsesRight = 0; //why volatile?
+volatile unsigned long pulsesLeft = 0;
+int errorPulse = 1;
 int integral = 0;
-double maxCorrect = 0.1;    //limits correction values
-double maxSpeed = 0.2;     //limits motor speed
-double minSpeed = 0.05;     //need this?
-double speedR = 0.1;        //for setting motor speed; accumulates
+double speedR = 0.1;        //holds motor speed
 double speedL = 0.1;
 int cnt=0;                  //for D
 int prevError = 0;  //for D
-int turning = 0;
 
-float farLeft;
+float farLeft; //hold IR readings
 float midLeft;
 float midRight;
 float farRight;
@@ -71,71 +116,41 @@ void stop() {    // stops mouse (turns motors to 0)
 	return;
 }
 
-void go(int cells) {
-	setRight(speedR)
-}
-
-void turnR90() {   // turns 90 deg right
-	turning = 1;
-	int temp = pulsesRight;
-	int temp2 = pulsesLeft;
+void turn(int gobr) {
+	int rtt = gobr - curbr;	//will be either 0, 1, 2, 3, -1, -2, -3
+	//neg -> counterclock; pos -> clock
+	if(rtt == 0)
+		return;
+	//change -3 to +1 and +3 to -1
+	if(rtt == -3)
+		rtt = 1;
+	else if(rtt == 3)
+		rtt = -1;
+		
 	pulsesRight = 0;
 	pulsesLeft = 0;
-	
-	midRight = ir_r3.read();
-	while(pulsesLeft<1000 && midRight > 0.35){
-		pc.printf("pulsesLeft:%d              midRight:%f\r\n", pulsesLeft, midRight);
-		rightF.write(0.1);
-		rightR.write(0);
-		leftF.write(0);
-		leftR.write(0.1);
-		midRight = ir_r3.read();
+	if(rtt > 0) { //right turns
+		int cnt = rtt * 100;
+		while(pulsesLeft < cnt){
+			rightF.write(0);
+			rightR.write(0.05);
+			leftR.write(0);
+			leftF.write(0.05);
+		}
 	}
-	pulsesRight = temp;
-	pulsesLeft = temp2;
+	else { 		//left turns
+		int cnt = rtt * -100;
+		while(pulsesRight < cnt){
+			rightR.write(0);
+			rightF.write(0.05);
+			leftF.write(0);
+			leftR.write(0.05);
+		}
+	}
+	curbr = gobr; //set current bearing to new bearing
 	stop();
-	turning = 0;
 	return;
 }
-
-void turnL90() {   // turns 90 deg right
-	turning = 1;
-	int temp = pulsesRight;
-	int temp2 = pulsesLeft;
-	pulsesRight = 0;
-	pulsesLeft = 0;
-	midLeft = ir_r2.read();
-	while(pulsesRight<1000 && midLeft > 0.35){
-		pc.printf("pulsesRight:%d\r\n", pulsesRight);
-		rightF.write(0);
-		rightR.write(0.1);
-		leftF.write(0.1);
-		leftR.write(0);
-		midLeft = ir_r2.read();
-	}
-	pulsesRight = temp;
-	pulsesLeft = temp2;
-	stop();
-	turning = 0;
-	return;
-}
-
-/*
-//Not in use yet
-void forward(int cells) {   // moves forward num of cells
-	int temp = pulsesRight;
-	pulsesRight = 0;
-	int n = 2500*cells;
-	while(pulsesRight<n){
-		rightF = 0.1;
-		rightR = 0;
-		leftF = 0.1;
-		leftR = 0;
-	}
-	pulsesRight = temp + pulsesRight;
-	stop();
-	return;
-}*/
 
 void setLeft(double speed){    // safely writes motor speed
 	if(speed > maxSpeed)
@@ -157,11 +172,26 @@ void setRight(double speed){
 	return;
 }
 
-void resetSpeed(double speed){    // resets forward speeds to input
-	rightF.write(speed);
-	rightR.write(0);
-	leftF.write(speed);
-	leftR.write(0);
+void go(int cells) {
+	int cnt = cells * 146; //TODO change 146
+	pulsesRight = 0;
+	pulsesLeft = 0;
+	while(midLeft < 0.1 && midRight < 0.1 && pulsesRight < cnt && pulsesLeft < cnt) {
+		setRight(speedR);
+		setLeft(speedL);
+	}
+	switch(curbr) {
+		case 1:
+			y++;		
+		case 2:
+			x++;
+		case 3:
+			y--;
+		case 4:
+			x--;
+	}
+	rightF = 0;
+	leftF = 0;
 	return;
 }
 
@@ -196,136 +226,101 @@ double I_Controller(int error)
 	return correction;
 }
 
-//needs changes. maybe into systick, but not checking walls and turning should be main loop
-void aheadTest()
-{
-	//pc.printf("test farLeft: %f         farRight:%f\r\n", farLeft, farRight);
-	midRight = ir_r3.read();
-	midLeft = ir_r2.read();
-	if(midRight >= 0.325 || midLeft >= 0.325){
-		farRight = ir_r4.read();
-		farLeft = ir_r1.read();
-		if (farRight > farLeft+0.1) {
-			turnL90();
-		}
-		else if(0.1+farLeft > farRight){
-			turnR90();
-		}
-	} 
-	return;
-}
 
 void systick() {
-	
-	//errorPulse = pulsesLeft - pulsesRight;
 
-	//--------IR PID----------- just avoid walls
+	//--------IR PID----------- 
+	eL = 1;
+	farLeft = rL.read() - offsetL;
+	eL = 0;
 	
-	//systick will run while turning so turn off ir pid while turning.
-	if(!turning) {
-		if(midRight > 0.1) //approaching right wall
-			speedR += 0.3 * midRight;   //avg midRight a couple cm away is 0.2
-		else if(farLeft > 0.1)
-			speedL += 0.3 * midLeft;
+	eML = 1;
+	midLeft = rML.read() - offsetML;
+	eML = 0;
+	
+	eMR = 1;
+	midRight = rMR.read() - offsetMR;
+	eMR = 0;
+
+	eR = 1;
+	farRight = rR.read() - offsetR;
+	eR = 0;
+					
+	if(midRight > 0.1) { //approaching right wall
+		speedR += 0.2 * midRight;
+		speedL -= 0.2 * midRight;
+		//setRight(speedR);
+		//setLeft(speedL);
+		//pc.printf("speedR : %f\n", speedR);
+	} else if(farLeft > 0.1) { //may need to make more sensitive
+		speedL += 0.2 * midLeft;
+		speedR -= 0.2 * midLeft;
+		//setLeft(speedL);
+		//setRight(speedR);
+		//pc.printf("speedL: %f\n", speedL);
 	}
 
-	//encoder PID , may not need
-	/*
-	else{
-		//PROPORTIONAL
-		speedChange = P_Controller(errorPulse); //can be neg or pos
-		
-		//DERIVATIVE
-		speedChange += D_Controller(errorPulse); //when P neg, D is pos; this line not tested
-
-		//INTEGRAL
-		//speedChange += I_Controller(errorPulse);
-	  
-		speedR += speedChange; //if speedChange neg (left is faster), speedR increases
-		speedL -= speedChange;
-
-		if (errorPulse == 0) { //if no error go normal speed
-			speedR = 0.2;
-			speedL = 0.2;
-		}
-	}*/
 }
 
 int main() {
 	pc.baud(9600);
+	Systicker.attach_us(&systick, 5000);
 	onled = 1;
 	encoderRightF.rise(&incrementRight);
 	encoderRightF.fall(&incrementRight);
 	encoderLeftF.rise(&incrementLeft);
 	encoderLeftF.fall(&incrementLeft);
-	//not touching R pins of motors yet
-
-	float offsetL;
-	float offsetML;
-	float offsetMR;
-	float offsetR;
+	//not use R pins of motors yet
+	
 
 	for(int i=0; i<9; i++) {
-		ir_e1 = 1;
-		offsetL  += ir_r1.read();
-		ir_e1 = 0;
-		ir_e2 = 1;
-		offsetML += ir_r2.read();
-		ir_e2 = 0;
-		ir_e3 = 1;
-		offsetMR += ir_r3.read();
-		ir_e3 = 0;
-		ir_e4 = 1;
-		offsetR  += ir_r4.read();
-		ir_e4 = 0;
+		eL = 1;
+		offsetL  += rL.read();
+		eL = 0;
+		eML = 1;
+		offsetML += rML.read();
+		eML = 0;
+		eMR = 1;
+		offsetMR += rMR.read();
+		eMR = 0;
+		eR = 1;
+		offsetR  += rR.read();
+		eR = 0;
 	}
 	offsetL  /= 10;
 	offsetML /= 10;
 	offsetMR /= 10;
 	offsetR  /= 10;
-	
-	leftF.write(0);
-	leftR.write(0);
 
-	rightF.write(0);
-	rightR.write(0);
-	
+	turn(3);
+	turn(4);
+	turn(2);
+
 	while (1) {
-		ir_e1 = 1;
-		farLeft = ir_r1.read() - offsetL;
-		ir_e1 = 0;
-		
-		ir_e2 = 1;
-		midLeft = ir_r2.read() - offsetML;
-		ir_e2 = 0;
-		
-		ir_e3 = 1;
-		midRight = ir_r3.read() - offsetMR;
-		ir_e3 = 0;
+	/*
+	//find adjacent lower dist cell
+	int gobr = 1;
+	int min = map[x][y].dist;
+	if(y > 0 && !map[x][y-1].s && map[x][y-1].dist < min) //check north
+		gobr = 1;
+	if(x < 15 && !map[x+1][y].w && map[x+1][y].dist < min) //check east
+		gobr = 2;
+	if(y < 15 && !map[x][y+1].n && map[x][y+1].dist < min) //check south
+		gobr = 3;
+	if(x > 0 && !map[x-1][y].e && map[x-1][y].dist < min) //check west
+		gobr = 4;
+	*/	
+	//turn(gobr);
+	//go(1);//TODO check
+	
+	
+	//if blocked
+		//place a wall
+		//flood	
 
-		ir_e4 = 1;
-		farRight = ir_r4.read() - offsetR;
-		ir_e4 = 0;
-					
-	if(!turning) {
-		if(midRight > 0.1) { //approaching right wall
-			speedR += 0.3 * midRight;
-			speedL -= 0.1 * midRight;
-			//setRight(speedR);
-			//pc.printf("speedR : %f\n", speedR);
-			speedR = 0; speedL = 0;
-		} else if(farLeft > 0.1) {
-			speedL += 0.3 * midLeft;
-			speedR -= 0.1 * midLeft;
-			//setLeft(speedL);
-			//pc.printf("speedL: %f\n", speedL);
-			speedL = 0; speedR = 0;
-		}
-	}
-
-	//pc.printf("%f %f %f %f %f %f\n", farLeft, midLeft, midRight, farRight, speedL, speedR );
+	//	pc.printf("%f %f %f %f %f %f\n", farLeft, midLeft, midRight, farRight, speedL, speedR );
 			
 	//pc.printf("\n");
-	pc.printf("pulsesLeft:%d pulsesRight:%d \n", pulsesLeft, pulsesRight);
+	//pc.printf("pulsesLeft:%d pulsesRight:%d \n", pulsesLeft, pulsesRight);
   }
 }
