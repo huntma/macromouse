@@ -1,16 +1,18 @@
 #include "mbed.h"
 
-DigitalOut led1(LED1);
+DigitalOut onled(PC_11);
 
+Serial pc(PA_9, PA_10); //set serial
+
+//motor pins
 PwmOut leftF(PC_7); //for rat pa7
 PwmOut leftR(PC_6); //for rat pb6
-
 PwmOut rightR(PC_9); //for rat: pc7     
 PwmOut rightF(PC_8); //for rat: pb10
 
+//set motor encoders
 InterruptIn encoderLeftR(PA_0);
 InterruptIn encoderLeftF(PA_1);
-
 InterruptIn encoderRightR(PA_2);
 InterruptIn encoderRightF(PA_3);
 
@@ -27,8 +29,9 @@ DigitalOut ir_e3(PB_1);    ///mid right
 DigitalOut ir_e4(PB_0);    ///far right
 
 Timer timer;
-Ticker Systicker;
+//Ticker Systicker;
 
+//constants for the code
 volatile unsigned long pulsesRight = 0;
 volatile unsigned long pulsesLeft = 0;
 int errorPulse = 1;
@@ -50,8 +53,6 @@ float farLeft =  ir_r1.read();
 float midLeft =  ir_r2.read();
 float midRight = ir_r3.read();
 float farRight = ir_r4.read();
-
-Serial pc(PA_9, PA_10); //set serial
 
 void incrementRight(){  // increments right pulses
     pulsesRight++;
@@ -225,7 +226,7 @@ void aheadTest()
 }
 
 void systick() {
-   /* 
+    
     //pc.printf("%f\r %f\r %f\r %f\r\n", farLeft, midLeft, midRight, farLeft);
 
     errorPulse = pulsesLeft - pulsesRight; //if errorPulse negative: left is faster than right
@@ -281,45 +282,68 @@ void systick() {
     speedL = 0;
     speedR = 0;
 
-*/
 }
 
 int main() {
-    
+	
+	onled = 1;
     encoderRightF.rise(&incrementRight);
     encoderRightF.fall(&incrementRight);
-
     encoderLeftF.rise(&incrementLeft);
     encoderLeftF.fall(&incrementLeft);
 
     pc.baud(9600);
+
+		float offsetL;
+		float offsetML;
+		float offsetMR;
+		float offsetR;
+
+	for(int i=0; i<9; i++) {
+		ir_e1 = 1;
+		offsetL  += ir_r1.read();
+		ir_e1 = 0;
+		ir_e2 = 1;
+		offsetML += ir_r2.read();
+		ir_e2 = 0;
+		ir_e3 = 1;
+		offsetMR += ir_r3.read();
+		ir_e3 = 0;
+		ir_e4 = 1;
+		offsetR  += ir_r4.read();
+		ir_e4 = 0;
+	}
+		offsetL  /= 10;
+		offsetML /= 10;
+		offsetMR /= 10;
+		offsetR  /= 10;
         
-    leftF.write(0.1);
+    leftF.write(0.0);
     leftR.write(0);
 
-    rightF.write(0.05);
+    rightF.write(0.0);
     rightR.write(0);
     
     while (1) {
 			ir_e1 = 1;
-			farLeft = ir_r1.read();
+			farLeft = ir_r1.read() - offsetL;
 			ir_e1 = 0;
 			
 			ir_e2 = 1;
-			midLeft = ir_r2.read();
+			midLeft = ir_r2.read() - offsetML;
 			ir_e2 = 0;
 			
 			ir_e3 = 1;
-			midRight = ir_r3.read();
+			midRight = ir_r3.read() - offsetMR;
 			ir_e3 = 0;
 
 			ir_e4 = 1;
-			farRight = ir_r4.read();
+			farRight = ir_r4.read() - offsetR;
 			ir_e4 = 0;
 
 			pc.printf("%f %f %f %f \n", farLeft, midLeft, midRight, farRight);
 			
 			//pc.printf("\n");
-      pc.printf("pulsesLeft:%d pulsesRight:%d \n", pulsesLeft, pulsesRight);
+      //pc.printf("pulsesLeft:%d pulsesRight:%d \n", pulsesLeft, pulsesRight);
     }
 }
