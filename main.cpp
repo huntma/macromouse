@@ -38,11 +38,11 @@ class cell
 	public:
 		cell(int d)
 		{
-			dist = d;
-			n=0;s=0;e=0;w=0;
+			dist=d;
+			n=0;e=0;
 		}
 		int dist;
-		bool n,s,e,w;	//north south east west
+		bool n,e;	//north east; only two avoid redundancy
 };
 /*
 int mapdim=16;
@@ -50,14 +50,17 @@ for(i=0; i<mapdim; i++)
 	for(j=0; j<mapdim; j++)
 		map[i][j] = new cell(mapdim + 
 */
+int THRESH = 0.2;
+int STHRESH = 0.1;
+int MAPSIZE = 16;
 cell map[16][16] = {
 {15,14,13,12,11,10,9,8,8,9,10,11,12,13,14,15},
-{14,13,12,11,10,9,8,7,7,8,9,10,11,12,13,14},
-{13,12,11,10,9,8,7,6,6,7,8,9,10,11,12,13},
-{12,11,10,9,8,7,6,5,5,6,7,8,9,10,11,12},
-{11,10,9,8,7,6,5,4,4,5,6,7,8,9,10,11},
-{10,9,8,7,6,5,4,3,3,4,5,6,7,8,9,10},
-{9,8,7,6,5,4,3,2,2,3,4,5,6,7,8,9},
+{14,13,12,11,10, 9,8,7,7,8, 9,10,11,12,13,14},
+{13,12,11,10, 9, 8,7,6,6,7, 8, 9,10,11,12,13},
+{12,11,10, 9, 8, 7,6,5,5,6, 7, 8, 9,10,11,12},
+{11,10, 9, 8, 7, 6,5,4,4,5, 6, 7, 8, 9,10,11},
+{10, 9, 8, 7, 6, 5,4,3,3,4, 5, 6, 7, 8, 9,10},
+{ 9, 8, 7, 6, 5, 4,3,2,2,3, 4, 5, 6, 7, 8, 9},
 {8,7,6,5,4,3,2,1,1,2,3,4,5,6,7,8},
 {8,7,6,5,4,3,2,1,1,2,3,4,5,6,7,8},
 {9,8,7,6,5,4,3,2,2,3,4,5,6,7,8,9},
@@ -130,7 +133,7 @@ void turn(int gobr) {
 	pulsesRight = 0;
 	pulsesLeft = 0;
 	if(rtt > 0) { //right turns
-		int cnt = rtt * 100;
+		int cnt = rtt * 107;
 		while(pulsesLeft < cnt){
 			rightF.write(0);
 			rightR.write(0.05);
@@ -139,7 +142,7 @@ void turn(int gobr) {
 		}
 	}
 	else { 		//left turns
-		int cnt = rtt * -100;
+		int cnt = rtt * -107;
 		while(pulsesRight < cnt){
 			rightR.write(0);
 			rightF.write(0.05);
@@ -174,58 +177,50 @@ void setRight(double speed){
 
 void go(int cells) {
 	int cnt = cells * 146; //TODO change 146
+	bool wall = 0;
 	pulsesRight = 0;
 	pulsesLeft = 0;
-	while(midLeft < 0.1 && midRight < 0.1 && pulsesRight < cnt && pulsesLeft < cnt) {
+	while(pulsesRight < cnt && pulsesLeft < cnt) {
+		if(midLeft > THRESH || midRight > THRESH) {
+			rightF = 0;
+			leftF = 0;
+			wall = 1;
+			break;
+		}
 		setRight(speedR);
 		setLeft(speedL);
 	}
-	switch(curbr) {
-		case 1:
-			y++;		
-		case 2:
-			x++;
-		case 3:
-			y--;
-		case 4:
-			x--;
-	}
+	if(wall)
+		placeWall();
+	else	
+		switch(curbr) {
+			case 1:
+				y++;		
+				break;
+			case 2:
+				x++;
+				break;
+			case 3:
+				y--;
+				break;
+			case 4:
+				x--;
+				break;
+		}
 	rightF = 0;
 	leftF = 0;
 	return;
 }
 
-double P_Controller(int error) // multiplies by Kp
-{
-	double correction = Kp * error;  // check if this is the right constant (1 pulse = 1 rotation of inner shaft, = ____ wheel rotations)
-		if (abs(correction) > maxCorrect) // check with max
-			correction = maxCorrect;
-	return correction;
-}
 
-double D_Controller(int error) //calc D correction
+void printMap()
 {
-	if(cnt==0) {    //once per 10 cycles
-		int dError = error - prevError; //fairly small #
-		double correction = Kd * dError;
-		prevError = error;
-		if (abs(correction) > maxCorrect) // check with max
-			correction = maxCorrect;     
-		return correction;
-	}
-	cnt++;
-	cnt = cnt%10;
-	return 0;
-}
+for(int i=0; i<MAPSIZE-1; i++)
+	for(int j=0; j<MAPSIZE-1; j++)
+		
 
-double I_Controller(int error)
-{
-	integral += error;
-	double correction = Ki * integral;
-	integral /= 2; //decay factor is 2
-	return correction;
-}
 
+}
 
 void systick() {
 
@@ -246,13 +241,13 @@ void systick() {
 	farRight = rR.read() - offsetR;
 	eR = 0;
 					
-	if(midRight > 0.1) { //approaching right wall
+	if(midRight > STHRESH) { //approaching right wall
 		speedR += 0.2 * midRight;
 		speedL -= 0.2 * midRight;
 		//setRight(speedR);
 		//setLeft(speedL);
 		//pc.printf("speedR : %f\n", speedR);
-	} else if(farLeft > 0.1) { //may need to make more sensitive
+	} else if(farLeft > STHRESH) { //may need to make more sensitive
 		speedL += 0.2 * midLeft;
 		speedR -= 0.2 * midLeft;
 		//setLeft(speedL);
@@ -260,6 +255,24 @@ void systick() {
 		//pc.printf("speedL: %f\n", speedL);
 	}
 
+}
+
+void placeWall()
+{
+	switch(curbr) { //case 1,2 no danger
+		case 1:
+			map[x][y].n = 1;
+			return;
+		case 2:
+			map[x][y].e = 1;
+			return;
+		case 3:
+			if(y < MAPSIZE-1) map[x][y+1].n = 1;
+			return;
+		case 4:
+			if(x > 0) map[x-1][y].e = 1;
+			return;
+	}
 }
 
 int main() {
@@ -271,7 +284,6 @@ int main() {
 	encoderLeftF.rise(&incrementLeft);
 	encoderLeftF.fall(&incrementLeft);
 	//not use R pins of motors yet
-	
 
 	for(int i=0; i<9; i++) {
 		eL = 1;
@@ -292,31 +304,30 @@ int main() {
 	offsetMR /= 10;
 	offsetR  /= 10;
 
-	turn(3);
-	turn(4);
-	turn(2);
-
+	
 	while (1) {
-	/*
+	//check and place walls if possible
+	if(farLeft > THRESH || farRight > THRESH)
+		placeWall();		
+	
+	//flood
+
 	//find adjacent lower dist cell
-	int gobr = 1;
+	
+	int gobr = curbr;
 	int min = map[x][y].dist;
-	if(y > 0 && !map[x][y-1].s && map[x][y-1].dist < min) //check north
+	if(y > 0 && !map[x][y].n && map[x][y-1].dist < min) //check north
 		gobr = 1;
-	if(x < 15 && !map[x+1][y].w && map[x+1][y].dist < min) //check east
+	if(x < MAPSIZE-1 && !map[x][y].e && map[x+1][y].dist < min) //check east
 		gobr = 2;
-	if(y < 15 && !map[x][y+1].n && map[x][y+1].dist < min) //check south
+	if(y < MAPSIZE-1 && !map[x][y+1].n && map[x][y+1].dist < min) //check south
 		gobr = 3;
 	if(x > 0 && !map[x-1][y].e && map[x-1][y].dist < min) //check west
 		gobr = 4;
-	*/	
-	//turn(gobr);
-	//go(1);//TODO check
+	turn(gobr);
+	go(1);
+	wait(0.5);
 	
-	
-	//if blocked
-		//place a wall
-		//flood	
 
 	//	pc.printf("%f %f %f %f %f %f\n", farLeft, midLeft, midRight, farRight, speedL, speedR );
 			
